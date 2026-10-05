@@ -58,6 +58,41 @@ function filteredDevices() {
   return list.sort(sorters[state.sort]);
 }
 
+/* ---------- device media (real photo with fallback chain) ---------- */
+
+function mediaTemplate(d, size = "card") {
+  if (d.img && d.img.length) {
+    const srcs = JSON.stringify(d.img).replace(/"/g, "&quot;");
+    return `
+    <div class="device-media ${size}">
+      <img loading="lazy" src="${d.img[0]}" alt="${d.name}"
+           data-id="${d.id}" data-srcs="${srcs}" data-idx="0"
+           onerror="window.__nextImg(this)">
+    </div>`;
+  }
+  return `<div class="device-media ${size} art">${phoneArt(d, size)}</div>`;
+}
+
+window.__nextImg = function (el) {
+  let idx = parseInt(el.dataset.idx || "0", 10) + 1;
+  let srcs;
+  try { srcs = JSON.parse(el.dataset.srcs); } catch (e) { srcs = []; }
+  if (idx < srcs.length) {
+    el.dataset.idx = String(idx);
+    el.src = srcs[idx];
+  } else {
+    // all remote images failed — swap in brand artwork
+    const d = DEVICES.find((x) => x.id === el.dataset.id);
+    const wrap = el.closest(".device-media");
+    if (wrap && d) {
+      wrap.classList.add("art");
+      wrap.innerHTML = phoneArt(d, wrap.classList.contains("mini") ? "mini" : wrap.classList.contains("big") ? "big" : "card");
+    } else if (el.parentNode) {
+      el.remove();
+    }
+  }
+};
+
 /* ---------- brand pills ---------- */
 
 function renderBrandPills() {
@@ -103,7 +138,7 @@ function cardTemplate(d) {
   return `
   <article class="device-card" data-id="${d.id}">
     <div class="card-top">
-      ${phoneArt(d)}
+      ${mediaTemplate(d)}
       <label class="compare-check" title="Select to compare">
         <input type="checkbox" ${checked} data-compare="${d.id}">
         <span>Compare</span>
@@ -207,7 +242,7 @@ function openDetails(id) {
 
   document.getElementById("details-body").innerHTML = `
     <div class="details-hero" style="--c1:${c1};--c2:${c2}">
-      ${phoneArt(d, "big")}
+      ${mediaTemplate(d, "big")}
       <div class="details-hero-info">
         <div class="card-meta">
           <span class="badge badge-brand">${d.brand}</span>
@@ -320,7 +355,7 @@ function openCompare() {
         <thead>
           <tr>
             <th class="rowhead"></th>
-            ${items.map((d) => `<th>${phoneArt(d, "mini")}<span>${d.name}</span></th>`).join("")}
+            ${items.map((d) => `<th>${mediaTemplate(d, "mini")}<span>${d.name}</span></th>`).join("")}
           </tr>
         </thead>
         <tbody>
